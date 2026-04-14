@@ -1,0 +1,14 @@
+[
+{
+  "directory": "F:/cmake_study/ringBuffer/build",
+  "command": "F:\\mingw64\\bin\\cc.exe -IF:/cmake_study/ringBuffer/include -g -o CMakeFiles\\outputFile.dir\\sources\\main.c.obj -c F:\\cmake_study\\ringBuffer\\sources\\main.c",
+  "file": "F:/cmake_study/ringBuffer/sources/main.c",
+  "output": "F:/cmake_study/ringBuffer/build/CMakeFiles/outputFile.dir/sources/main.c.obj"
+},
+{
+  "directory": "F:/cmake_study/ringBuffer/build",
+  "command": "F:\\mingw64\\bin\\cc.exe -IF:/cmake_study/ringBuffer/include -g -o CMakeFiles\\outputFile.dir\\sources\\ringBuffer.c.obj -c F:\\cmake_study\\ringBuffer\\sources\\ringBuffer.c",
+  "file": "F:/cmake_study/ringBuffer/sources/ringBuffer.c",
+  "output": "F:/cmake_study/ringBuffer/build/CMakeFiles/outputFile.dir/sources/ringBuffer.c.obj"
+}
+]

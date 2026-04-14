@@ -1,0 +1,4 @@
+# ninja log v7
+25	380	7979025171224660	CMakeFiles/outputFile.dir/sources/main.c.obj	8a14e031bdd63f2d
+36	387	7979025171339669	CMakeFiles/outputFile.dir/sources/ringBuffer.c.obj	6449196091ae9e2b
+388	690	7979025174856971	bin/outputFile.exe	25a9f7625b0f0288
