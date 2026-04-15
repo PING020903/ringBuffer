@@ -22,13 +22,16 @@ ringBuf_push(&rb, &data);  // 直接使用！
 **对比其他实现：**
 - ❌ 大多数C实现：仅支持单字节，需手动序列化
 - ✅ FreeRTOS Queue：支持不定长，但需动态内存
-- ✅ **本库**：不定长 + 零拷贝 + 无动态内存 + <200行代码
+- ✅ **本库**：不定长 + 零拷贝 + 无动态内存 + <250行代码
+
 ## 其他特性
 
 - 🚀 **高性能索引**：扩展索引范围(0~2*depth-1)，减少取模运算约50%
 - 🔄 **灵活模式**：支持覆盖/非覆盖模式
 - 📦 **批量操作**：提供 `push_multi` / `pop_multi` API
 - 💾 **零拷贝**：使用用户提供的静态内存，无动态分配
+- 🔍 **Peek 功能**：支持按索引查看数据而不移除
+- 🧪 **完整测试套件**：包含多种使用场景的测试用例
 
 ## ⚠️ 重要提示
 
@@ -63,6 +66,21 @@ int main(void) {
 }
 ```
 
+### Peek 功能示例
+
+```c
+// 查看指定位置的数据而不移除
+DataItem peeked;
+if (ringBuf_peek(&rb, &peeked, 0) == RINGBUF_OK) {
+    // 查看第一个元素
+}
+
+// 批量查看多个元素
+DataItem peekArray[3];
+short peeked_count = 0;
+ringBuf_peek_multi(&rb, peekArray, 3, 0, &peeked_count);
+```
+
 ## 构建
 
 ```bash
@@ -81,18 +99,22 @@ cmake --build .
 | `ringBuf_clear(rb)` | 清空缓冲区 |
 | `ringBuf_push(rb, &data)` | 写入单个数据项 |
 | `ringBuf_pop(rb, &data)` | 读取并移除 |
-| `ringBuf_peek(rb, &data)` | 查看但不移除 |
+| `ringBuf_peek(rb, &data, index)` | 查看指定索引位置的数据但不移除 |
 | `ringBuf_push_multi(rb, data, count, &written)` | 批量写入 |
 | `ringBuf_pop_multi(rb, data, count, &read)` | 批量读取 |
+| `ringBuf_peek_multi(rb, data, count, start_index, &peeked)` | 批量查看指定起始位置的数据 |
 | `ringBuf_count(rb)` | 获取当前数据项数量 |
 
-**返回值：** `RINGBUF_OK` 成功，其他为错误码（`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED` 等）
+**返回值：** `RINGBUF_OK` 成功，其他为错误码（`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX` 等）
 
 ## 技术亮点
 
 1. **扩展索引范围**：索引范围 0~2*depth-1，取模频率降低50%
 2. **零拷贝设计**：直接使用用户提供的静态内存
 3. **覆盖策略**：可选覆盖模式（丢弃旧数据）或非覆盖模式（返回错误）
+4. **Peek 功能**：支持按索引查看数据而不影响读写指针
+5. **批量操作**：高效的批量数据处理能力
+6. **类型安全**：支持任意大小的数据结构
 
 完整API详见 [ringBuffer.h](include/ringBuffer.h)
 
@@ -102,6 +124,8 @@ cmake --build .
 2. 确保传入的数据指针有效且具有足够空间
 3. 在中断服务程序中使用需特别注意重入问题
 4. 如需在多线程环境中使用，请添加适当的同步机制
+5. Peek 操作不会改变读写指针状态
+6. 批量操作会尽可能多地处理数据，即使部分失败也会返回已处理的数量
 
 ## 许可证
 

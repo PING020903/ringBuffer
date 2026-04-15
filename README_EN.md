@@ -22,7 +22,7 @@ ringBuf_push(&rb, &data);  // Use directly!
 **Comparison with other implementations:**
 - ❌ Most C implementations: Single-byte only, requires manual serialization
 - ✅ FreeRTOS Queue: Variable-size support, but requires dynamic memory
-- ✅ **This library**: Variable-size + zero-copy + no dynamic memory + <200 lines
+- ✅ **This library**: Variable-size + zero-copy + no dynamic memory + <250 lines
 
 ## Other Features
 
@@ -30,6 +30,8 @@ ringBuf_push(&rb, &data);  // Use directly!
 - 🔄 **Flexible modes**: Supports overwrite/non-overwrite modes
 - 📦 **Batch operations**: Provides `push_multi` / `pop_multi` APIs
 - 💾 **Zero-copy**: Uses user-provided static memory, no dynamic allocation
+- 🔍 **Peek functionality**: View data at specific indices without removal
+- 🧪 **Complete test suite**: Includes test cases for various usage scenarios
 
 ## ⚠️ Important Notice
 
@@ -64,6 +66,21 @@ int main(void) {
 }
 ```
 
+### Peek Functionality Example
+
+```c
+// View data at specific position without removing
+DataItem peeked;
+if (ringBuf_peek(&rb, &peeked, 0) == RINGBUF_OK) {
+    // View the first element
+}
+
+// Batch view multiple elements
+DataItem peekArray[3];
+short peeked_count = 0;
+ringBuf_peek_multi(&rb, peekArray, 3, 0, &peeked_count);
+```
+
 ## Build
 
 ```bash
@@ -82,18 +99,22 @@ Or run `build.bat` on Windows.
 | `ringBuf_clear(rb)` | Clear the buffer |
 | `ringBuf_push(rb, &data)` | Push a single item |
 | `ringBuf_pop(rb, &data)` | Pop and remove an item |
-| `ringBuf_peek(rb, &data)` | Peek without removing |
+| `ringBuf_peek(rb, &data, index)` | Peek at data at specified index without removing |
 | `ringBuf_push_multi(rb, data, count, &written)` | Batch push |
 | `ringBuf_pop_multi(rb, data, count, &read)` | Batch pop |
+| `ringBuf_peek_multi(rb, data, count, start_index, &peeked)` | Batch peek at data starting from specified index |
 | `ringBuf_count(rb)` | Get current item count |
 
-**Return values:** `RINGBUF_OK` on success, error codes otherwise (`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, etc.)
+**Return values:** `RINGBUF_OK` on success, error codes otherwise (`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX`, etc.)
 
 ## Technical Highlights
 
 1. **Extended index range**: Index range 0~2*depth-1, reduces modulo frequency by 50%
 2. **Zero-copy design**: Directly uses user-provided static memory
 3. **Overwrite strategy**: Optional overwrite mode (discard old data) or non-overwrite mode (return error)
+4. **Peek functionality**: View data at specific indices without affecting read/write pointers
+5. **Batch operations**: Efficient batch data processing capability
+6. **Type safety**: Supports data structures of any size
 
 See [ringBuffer.h](include/ringBuffer.h) for complete API details.
 
@@ -103,6 +124,8 @@ See [ringBuffer.h](include/ringBuffer.h) for complete API details.
 2. Ensure data pointers are valid and have sufficient space
 3. Pay special attention to reentrancy when used in interrupt service routines
 4. Add appropriate synchronization mechanisms for multi-threaded environments
+5. Peek operations do not change the read/write pointer state
+6. Batch operations will process as much data as possible, returning the count of successfully processed items even if some fail
 
 ## License
 
