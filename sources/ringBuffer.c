@@ -41,6 +41,7 @@ ringBuf_err_t ringBuf_clear(ringbuf_t *rb)
 
     rb->rd_idx = 0U; // 清空读写pos
     rb->wr_idx = 0U;
+
     return RINGBUF_OK;
 }
 
@@ -76,7 +77,9 @@ ringBuf_err_t ringBuf_push(ringbuf_t *rb, const void *pData)
 
     const int count = ringBuf_count(rb);
     if (count < 0)
+    {
         return RINGBUF_ERR_FAIL;
+    }
     if (count >= rb->depth)
     {
         if (!rb->overwritable)
@@ -107,9 +110,14 @@ ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData)
 
     const int count = ringBuf_count(rb);
     if (count == 0)
+    {
         return RINGBUF_ERR_EMPTY;
+    }
+
     if (count < 0)
+    {
         return RINGBUF_ERR_FAIL;
+    }
 
     void *read_pos = _get_item_ptr(rb, rb->rd_idx);
     memcpy(pData, read_pos, rb->item_size);
@@ -117,13 +125,34 @@ ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData)
     return RINGBUF_OK;
 }
 
-ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData)
+ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx)
 {
     RINGBUF_ARG_CHECK(rb);
-    if (!pData)
+    if (!pData || itemIdx < 0)
         return RINGBUF_ERR_ARG;
 
-    void *read_pos = _get_item_ptr(rb, rb->rd_idx);
+    const int count = ringBuf_count(rb);
+    if (count == 0)
+    {
+        return RINGBUF_ERR_EMPTY;
+    }
+    if (count < 0)
+    {
+        return RINGBUF_ERR_FAIL;
+    }
+
+    if (itemIdx >= count)
+    {
+        return RINGBUF_ERR_IDX;
+    }
+
+    unsigned short target_index = rb->rd_idx + itemIdx;
+    if (target_index >= 2 * rb->depth)
+    {
+        target_index -= 2 * rb->depth;
+    }
+
+    void *read_pos = _get_item_ptr(rb, target_index);
     memcpy(pData, read_pos, rb->item_size);
     return RINGBUF_OK;
 }
@@ -161,6 +190,28 @@ ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const short dataCoun
     for (read_count = 0U; read_count < dataCount; read_count++)
     {
         err = ringBuf_pop(rb, &src[read_count * rb->item_size]);
+        if (err)
+            break;
+    }
+
+    if (pCount)
+        *pCount = read_count;
+    return err;
+}
+
+ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const short dataCount, const short itemIdx, short *pCount)
+{
+    if (!rb || !pData || dataCount < 0)
+        return RINGBUF_ERR_ARG;
+
+    unsigned char *src = pData;
+    short read_count = 0U, target_index = 0U;
+    ringBuf_err_t err = RINGBUF_OK;
+
+    for (read_count = 0U; read_count < dataCount; read_count++)
+    {
+        target_index = itemIdx + read_count;
+        err = ringBuf_peek(rb, &src[read_count * rb->item_size], target_index);
         if (err)
             break;
     }

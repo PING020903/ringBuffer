@@ -24,7 +24,12 @@ typedef enum
     RINGBUF_ERR_WR_DENIED,
     RINGBUF_ERR_INVALID_PTR,
     RINGBUF_ERR_EMPTY,
+    RINGBUF_ERR_IDX,
 } ringBuf_err_t;
+
+typedef void *ringbuf_mutex_t;               // 互斥锁句柄
+typedef void (*ringbuf_lock_func_t)(void);   // 加锁函数指针
+typedef void (*ringbuf_unlock_func_t)(void); // 解锁函数指针
 
 typedef struct ringbuf_t
 {
@@ -52,16 +57,20 @@ typedef ptrdiff_t ringBuf_ptr_t;
 
 ringBuf_err_t ringBuf_clear(ringbuf_t *rb);
 
+int ringBuf_count(const ringbuf_t *rb);
+
 ringBuf_err_t ringBuf_init(ringbuf_t *rb);
 
 ringBuf_err_t ringBuf_push(ringbuf_t *rb, const void *pData);
 
 ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData);
 
-ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData);
+ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx);
 
 ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const short dataCount, short *pCount);
 
 ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const short dataCount, short *pCount);
+
+ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const short dataCount, const short itemIdx, short *pCount);
 
 #endif
