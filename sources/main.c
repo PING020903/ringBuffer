@@ -25,13 +25,16 @@ static void test_basic_push_pop(void) {
     TestData data = {.id = 1, .value = 100};
     ringBuf_err_t err = ringBuf_push(&ringBufCtrl, &data);
     DEBUG_PRINT("Push result: %d", err);
-    DEBUG_PRINT("Count after push: %d", ringBuf_count(&ringBufCtrl));
+    ringbuf_cnt_t cnt;
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Count after push: %d", cnt);
     
     TestData received;
     err = ringBuf_pop(&ringBufCtrl, &received);
     DEBUG_PRINT("Pop result: %d", err);
     DEBUG_PRINT("Received: id=%d, value=%d", received.id, received.value);
-    DEBUG_PRINT("Count after pop: %d", ringBuf_count(&ringBufCtrl));
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Count after pop: %d", cnt);
 }
 
 // 测试2: peek 带索引
@@ -44,7 +47,9 @@ static void test_peek_with_index(void) {
         TestData data = {.id = (uint8_t)(i + 1), .value = (uint16_t)((i + 1) * 10)};
         ringBuf_push(&ringBufCtrl, &data);
     }
-    DEBUG_PRINT("Pushed 3 items, count: %d", ringBuf_count(&ringBufCtrl));
+    ringbuf_cnt_t cnt;
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Pushed 3 items, count: %d", cnt);
     
     // Peek 不同位置
     for (int i = 0; i < 3; i++) {
@@ -54,7 +59,8 @@ static void test_peek_with_index(void) {
     }
     
     // 验证 peek 不改变状态
-    DEBUG_PRINT("Count after peek: %d (should still be 3)", ringBuf_count(&ringBufCtrl));
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Count after peek: %d (should still be 3)", cnt);
     
     // 测试越界
     TestData invalid;
@@ -74,14 +80,16 @@ static void test_multi_operations(void) {
         dataArray[i].value = (uint16_t)((i + 10) * 100);
     }
     
-    short written = 0;
+    ringbuf_cnt_t written = 0;
     ringBuf_err_t err = ringBuf_push_multi(&ringBufCtrl, dataArray, 5, &written);
     DEBUG_PRINT("Push multi: err=%d, written=%d", err, written);
-    DEBUG_PRINT("Count: %d", ringBuf_count(&ringBufCtrl));
+    ringbuf_cnt_t cnt;
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Count: %d", cnt);
     
     // 批量读取
     TestData readArray[5];
-    short readCount = 0;
+    ringbuf_cnt_t readCount = 0;
     err = ringBuf_pop_multi(&ringBufCtrl, readArray, 5, &readCount);
     DEBUG_PRINT("Pop multi: err=%d, read=%d", err, readCount);
     
@@ -100,11 +108,13 @@ static void test_peek_multi(void) {
         TestData data = {.id = (uint8_t)(i + 1), .value = (uint16_t)(i * 50)};
         ringBuf_push(&ringBufCtrl, &data);
     }
-    DEBUG_PRINT("Pushed 5 items, count: %d", ringBuf_count(&ringBufCtrl));
+    ringbuf_cnt_t cnt;
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Pushed 5 items, count: %d", cnt);
     
     // Peek 多个元素（从索引0开始）
     TestData peekArray[5];
-    short peeked = 0;
+    ringbuf_cnt_t peeked = 0;
     ringBuf_err_t err = ringBuf_peek_multi(&ringBufCtrl, peekArray, 5, 0, &peeked);
     DEBUG_PRINT("Peek multi from 0: err=%d, peeked=%d", err, peeked);
     
@@ -113,7 +123,8 @@ static void test_peek_multi(void) {
     }
     
     // 验证缓冲区未被修改
-    DEBUG_PRINT("Count after peek_multi: %d (should still be 5)", ringBuf_count(&ringBufCtrl));
+    ringBuf_count(&ringBufCtrl, &cnt);
+    DEBUG_PRINT("Count after peek_multi: %d (should still be 5)", cnt);
     
     // 从中间位置 peek
     TestData peekArray2[3];
@@ -140,13 +151,82 @@ static void test_overwrite_mode(void) {
         DEBUG_PRINT("Push item %d: err=%d", i + 1, err);
     }
     
-    DEBUG_PRINT("Count: %d (expected 3)", ringBuf_count(&overwrite_rb));
+    ringbuf_cnt_t cnt;
+    ringBuf_count(&overwrite_rb, &cnt);
+    DEBUG_PRINT("Count: %d (expected 3)", cnt);
     
     // 读取验证
     for (int i = 0; i < 3; i++) {
         TestData data;
         ringBuf_pop(&overwrite_rb, &data);
         DEBUG_PRINT("Popped: id=%d, value=%d", data.id, data.value);
+    }
+}
+
+// 测试6: RINGBUF_ARG_CHECK 参数校验
+static void test_arg_check(void) {
+    DEBUG_PRINT("\n=== Test 6: ARG_CHECK Validation ===");
+
+    // 6.1 depth 为 0 —— init 应拒绝
+    {
+        static unsigned char buf[64];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 0, 4, false);
+        ringBuf_err_t err = ringBuf_init(&rb);
+        DEBUG_PRINT("Init with depth=0: err=%d (expected %d)", err, RINGBUF_ERR_ARG);
+    }
+
+    // 6.2 item_size 为 0 —— init 应拒绝
+    {
+        static unsigned char buf[64];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 4, 0, false);
+        ringBuf_err_t err = ringBuf_init(&rb);
+        DEBUG_PRINT("Init with item_size=0: err=%d (expected %d)", err, RINGBUF_ERR_ARG);
+    }
+
+    // 6.3 push 也会被 ARG_CHECK 拦截（depth=0，跳过 init）
+    {
+        static unsigned char buf[64];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 0, 4, false);
+        rb.wr_idx = 0;
+        rb.rd_idx = 0;
+        int val = 42;
+        ringBuf_err_t err = ringBuf_push(&rb, &val);
+        DEBUG_PRINT("Push with depth=0: err=%d (expected %d)", err, RINGBUF_ERR_ARG);
+    }
+
+    // 6.4 count 也会被 ARG_CHECK 拦截（item_size=0，跳过 init）
+    {
+        static unsigned char buf[64];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 4, 0, false);
+        rb.wr_idx = 0;
+        rb.rd_idx = 0;
+        ringbuf_cnt_t cnt;
+        ringBuf_err_t err = ringBuf_count(&rb, &cnt);
+        DEBUG_PRINT("Count with item_size=0: err=%d (expected %d)", err, RINGBUF_ERR_ARG);
+    }
+
+    // 6.5 超大缓冲区溢出检查
+    //     将 depth 设为 ringbuf_ucnt_t 上限，验证 2*depth 不溢出 uidx_t
+    {
+        static unsigned char buf[128];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 8, 1, false);
+        /* 强制写入 unsigned short 最大值 */
+        *(ringbuf_ucnt_t *)&rb.depth = (ringbuf_ucnt_t)-1; /* 65535 */
+        ringBuf_err_t err = ringBuf_init(&rb);
+        /* 当前 uidx_t=unsigned int: 2*65535=131070 < UINT_MAX/2≈2e9，通过
+         * 若 uidx_t=uint16_t:      2*65535=131070 > 32767，将被拦截 */
+        DEBUG_PRINT("Max depth=%u: err=%d (guard active, rejects if uidx_t too narrow)",
+                    (unsigned int)rb.depth, err);
+    }
+
+    // 6.6 clear 也会被 ARG_CHECK 拦截（item_size=0，跳过 init）
+    {
+        static unsigned char buf[64];
+        ringbuf_t rb = RINGBUFCRTL_INIT(buf, 4, 0, false);
+        rb.wr_idx = 0;
+        rb.rd_idx = 0;
+        ringBuf_err_t err = ringBuf_clear(&rb);
+        DEBUG_PRINT("Clear with item_size=0: err=%d (expected %d)", err, RINGBUF_ERR_ARG);
     }
 }
 
@@ -164,6 +244,7 @@ int main(void)
     test_multi_operations();
     test_peek_multi();
     test_overwrite_mode();
+    test_arg_check();
     
     DEBUG_PRINT("\n========================================");
     DEBUG_PRINT("All tests completed!");

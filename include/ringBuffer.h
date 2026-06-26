@@ -31,14 +31,19 @@ typedef void *ringbuf_mutex_t;               // 互斥锁句柄
 typedef void (*ringbuf_lock_func_t)(void);   // 加锁函数指针
 typedef void (*ringbuf_unlock_func_t)(void); // 解锁函数指针
 
+typedef unsigned int ringbuf_uidx_t;   // 无符号索引类型
+typedef unsigned short ringbuf_ucnt_t; // 无符号计数类型
+typedef int ringbuf_idx_t;             // 索引类型
+typedef short ringbuf_cnt_t;           // 计数类型
+
 typedef struct ringbuf_t
 {
     void *buffer;                   /**< 数据缓冲区指针 */
-    const unsigned short depth;     /**< 缓冲区深度（元素个数） 运行时不可改变*/
-    const unsigned short item_size; /**< 单个元素大小（字节） 运行时不可改变*/
+    const ringbuf_ucnt_t depth;     /**< 缓冲区深度（元素个数） 运行时不可改变*/
+    const ringbuf_ucnt_t item_size; /**< 单个元素大小（字节） 运行时不可改变*/
 
-    volatile unsigned short wr_idx; /**< 写索引（未掩码，范围 0~2*depth-1） */
-    volatile unsigned short rd_idx; /**< 读索引（未掩码，范围 0~2*depth-1） */
+    volatile ringbuf_uidx_t wr_idx; /**< 写索引（未掩码，范围 0~2*depth-1） */
+    volatile ringbuf_uidx_t rd_idx; /**< 读索引（未掩码，范围 0~2*depth-1） */
 
     bool overwritable; /**< 满时是否覆盖旧数据 */
 } ringbuf_t;
@@ -57,7 +62,7 @@ typedef ptrdiff_t ringBuf_ptr_t;
 
 ringBuf_err_t ringBuf_clear(ringbuf_t *rb);
 
-int ringBuf_count(const ringbuf_t *rb);
+ringBuf_err_t ringBuf_count(const ringbuf_t *rb, ringbuf_cnt_t *pCount);
 
 ringBuf_err_t ringBuf_init(ringbuf_t *rb);
 
@@ -65,12 +70,13 @@ ringBuf_err_t ringBuf_push(ringbuf_t *rb, const void *pData);
 
 ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData);
 
-ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx);
+ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const ringbuf_ucnt_t itemIdx);
 
-ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const short dataCount, short *pCount);
+ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const ringbuf_ucnt_t dataCount, ringbuf_cnt_t *pCount);
 
-ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const short dataCount, short *pCount);
+ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const ringbuf_ucnt_t dataCount, ringbuf_cnt_t *pCount);
 
-ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const short dataCount, const short itemIdx, short *pCount);
+ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const ringbuf_ucnt_t dataCount,
+                                 const ringbuf_cnt_t itemIdx, ringbuf_cnt_t *pCount);
 
 #endif

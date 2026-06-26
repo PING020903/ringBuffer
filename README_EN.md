@@ -1,6 +1,6 @@
 # Ring Buffer
 
-A lightweight C ring buffer implementation with **variable-size item support**, allowing direct storage of structs without serialization. Ideal for embedded systems.
+A lightweight C ring buffer implementation with **variable-size item support**, allowing direct storage of structs without serialization. Ideal for embedded systems. Current version **v1.2.0**.
 
 ## ✨ Core Features
 
@@ -22,7 +22,7 @@ ringBuf_push(&rb, &data);  // Use directly!
 **Comparison with other implementations:**
 - ❌ Most C implementations: Single-byte only, requires manual serialization
 - ✅ FreeRTOS Queue: Variable-size support, but requires dynamic memory
-- ✅ **This library**: Variable-size + zero-copy + no dynamic memory + <250 lines
+- ✅ **This library**: Variable-size + zero-copy + no dynamic memory + type-safe
 
 ## Other Features
 
@@ -32,6 +32,9 @@ ringBuf_push(&rb, &data);  // Use directly!
 - 💾 **Zero-copy**: Uses user-provided static memory, no dynamic allocation
 - 🔍 **Peek functionality**: View data at specific indices without removal
 - 🧪 **Complete test suite**: Includes test cases for various usage scenarios
+- 🛡️ **Type safety**: Dedicated type aliases (`ringbuf_uidx_t`, `ringbuf_cnt_t`, etc.) to prevent overflow in deep buffers
+- ✅ **Parameter validation**: `RINGBUF_ARG_CHECK` macro validates non-zero `depth`/`item_size` and prevents `2*depth` overflow of index type, automatically checked on every API call
+- 🔒 **Mutex interface reserved**: Header defines `ringbuf_mutex_t`, `ringbuf_lock_func_t`, `ringbuf_unlock_func_t` types for integrating external synchronization
 
 ## ⚠️ Important Notice
 
@@ -103,18 +106,20 @@ Or run `build.bat` on Windows.
 | `ringBuf_push_multi(rb, data, count, &written)` | Batch push |
 | `ringBuf_pop_multi(rb, data, count, &read)` | Batch pop |
 | `ringBuf_peek_multi(rb, data, count, start_index, &peeked)` | Batch peek at data starting from specified index |
-| `ringBuf_count(rb)` | Get current item count |
+| `ringBuf_count(rb, &count)` | Get current item count (returned via pointer) |
 
-**Return values:** `RINGBUF_OK` on success, error codes otherwise (`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX`, etc.)
+**Return values:** Most functions return `RINGBUF_OK` on success, error codes otherwise (`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX`, etc.). `ringBuf_count` returns count via `ringbuf_cnt_t *pCount` pointer.
 
 ## Technical Highlights
 
 1. **Extended index range**: Index range 0~2*depth-1, reduces modulo frequency by 50%
 2. **Zero-copy design**: Directly uses user-provided static memory
-3. **Overwrite strategy**: Optional overwrite mode (discard old data) or non-overwrite mode (return error)
-4. **Peek functionality**: View data at specific indices without affecting read/write pointers
-5. **Batch operations**: Efficient batch data processing capability
-6. **Type safety**: Supports data structures of any size
+3. **Type safety**: Dedicated type aliases (`ringbuf_uidx_t`/`ringbuf_ucnt_t`/`ringbuf_idx_t`/`ringbuf_cnt_t`) ensure consistent index and count variable types
+4. **Parameter validation**: `RINGBUF_ARG_CHECK` macro centralizes validation across all API entry points, preventing zero `depth`/`item_size` or `2*depth` overflow of index type
+5. **Overwrite strategy**: Optional overwrite mode (discard old data) or non-overwrite mode (return error)
+6. **Peek functionality**: View data at specific indices without affecting read/write pointers
+7. **Batch operations**: Efficient batch data processing capability
+8. **Mutex interface**: `ringBuf_lock_func_t` / `ringBuf_unlock_func_t` function pointer types for RTOS synchronization integration
 
 See [ringBuffer.h](include/ringBuffer.h) for complete API details.
 

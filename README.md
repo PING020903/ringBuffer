@@ -1,6 +1,6 @@
 # 环形缓冲区 (Ring Buffer)
 
-支持**不定长数据项**的轻量级C语言环形缓冲区实现，可直接存储结构体而无需序列化，适合嵌入式系统。
+支持**不定长数据项**的轻量级C语言环形缓冲区实现，可直接存储结构体而无需序列化，适合嵌入式系统。当前版本 **v1.2.0**。
 
 ## ✨ 核心特性
 
@@ -22,7 +22,7 @@ ringBuf_push(&rb, &data);  // 直接使用！
 **对比其他实现：**
 - ❌ 大多数C实现：仅支持单字节，需手动序列化
 - ✅ FreeRTOS Queue：支持不定长，但需动态内存
-- ✅ **本库**：不定长 + 零拷贝 + 无动态内存 + <250行代码
+- ✅ **本库**：不定长 + 零拷贝 + 无动态内存 + 类型安全
 
 ## 其他特性
 
@@ -32,6 +32,9 @@ ringBuf_push(&rb, &data);  // 直接使用！
 - 💾 **零拷贝**：使用用户提供的静态内存，无动态分配
 - 🔍 **Peek 功能**：支持按索引查看数据而不移除
 - 🧪 **完整测试套件**：包含多种使用场景的测试用例
+- 🛡️ **类型安全**：使用专用类型别名（`ringbuf_uidx_t`、`ringbuf_cnt_t` 等），避免大深度缓冲区下的溢出风险
+- ✅ **参数校验**：`RINGBUF_ARG_CHECK` 宏统一校验 `depth`/`item_size` 非零及 `2*depth` 不溢出索引类型，所有 API 调用自动检查
+- 🔒 **预留互斥锁接口**：头文件中定义了 `ringbuf_mutex_t`、`ringbuf_lock_func_t`、`ringbuf_unlock_func_t` 类型，方便集成外部同步机制
 
 ## ⚠️ 重要提示
 
@@ -103,18 +106,20 @@ cmake --build .
 | `ringBuf_push_multi(rb, data, count, &written)` | 批量写入 |
 | `ringBuf_pop_multi(rb, data, count, &read)` | 批量读取 |
 | `ringBuf_peek_multi(rb, data, count, start_index, &peeked)` | 批量查看指定起始位置的数据 |
-| `ringBuf_count(rb)` | 获取当前数据项数量 |
+| `ringBuf_count(rb, &count)` | 获取当前数据项数量（通过指针返回） |
 
-**返回值：** `RINGBUF_OK` 成功，其他为错误码（`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX` 等）
+**返回值：** 多数函数返回 `RINGBUF_OK` 表示成功，其他为错误码（`RINGBUF_ERR_EMPTY`, `RINGBUF_ERR_WR_DENIED`, `RINGBUF_ERR_IDX` 等）。`ringBuf_count` 通过 `ringbuf_cnt_t *pCount` 指针返回计数值。
 
 ## 技术亮点
 
 1. **扩展索引范围**：索引范围 0~2*depth-1，取模频率降低50%
 2. **零拷贝设计**：直接使用用户提供的静态内存
-3. **覆盖策略**：可选覆盖模式（丢弃旧数据）或非覆盖模式（返回错误）
-4. **Peek 功能**：支持按索引查看数据而不影响读写指针
-5. **批量操作**：高效的批量数据处理能力
-6. **类型安全**：支持任意大小的数据结构
+3. **类型安全**：专用类型别名（`ringbuf_uidx_t`/`ringbuf_ucnt_t`/`ringbuf_idx_t`/`ringbuf_cnt_t`）确保索引和计数变量类型一致
+4. **参数校验**：`RINGBUF_ARG_CHECK` 宏集中校验，覆盖所有 API 入口，防止 `depth`/`item_size` 为零或 `2*depth` 溢出索引类型
+5. **覆盖策略**：可选覆盖模式（丢弃旧数据）或非覆盖模式（返回错误）
+6. **Peek 功能**：支持按索引查看数据而不影响读写指针
+7. **批量操作**：高效的批量数据处理能力
+8. **互斥锁预留**：`ringBuf_lock_func_t` / `ringBuf_unlock_func_t` 函数指针类型，方便集成 RTOS 同步机制
 
 完整API详见 [ringBuffer.h](include/ringBuffer.h)
 

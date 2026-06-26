@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(ringBuffer 
-    VERSION 1.0 
-    DESCRIPTION "one_test" 
+    VERSION 1.2.0 
+    DESCRIPTION "A lightweight C ring buffer with variable-size item support" 
     LANGUAGES C)
 
 

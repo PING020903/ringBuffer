@@ -14,21 +14,25 @@
         }                                \
     } while (0)
 
-#define RINGBUF_ARG_CHECK(_rb)      \
-    do                              \
-    {                               \
-        if (!(_rb))                 \
-            return RINGBUF_ERR_ARG; \
-        if (!((_rb)->buffer))       \
-            return RINGBUF_ERR_BUF; \
+#define RINGBUF_ARG_CHECK(_rb)                                            \
+    do                                                                    \
+    {                                                                     \
+        if (!(_rb))                                                       \
+            return RINGBUF_ERR_ARG;                                       \
+        if (!((_rb)->buffer))                                             \
+            return RINGBUF_ERR_BUF;                                       \
+        if (((_rb)->depth) == 0U || ((_rb)->item_size) == 0U)             \
+            return RINGBUF_ERR_ARG;                                       \
+        if ((ringbuf_uidx_t)((_rb)->depth) > ((ringbuf_uidx_t)-1) / 2U)  \
+            return RINGBUF_ERR_ARG;                                       \
     } while (0)
 
-static inline unsigned short _calc_count(unsigned short wr, unsigned short rd, unsigned short depth)
+static inline ringbuf_cnt_t _calc_count(ringbuf_uidx_t wr, ringbuf_uidx_t rd, ringbuf_ucnt_t depth)
 {
-    return (wr >= rd) ? (wr - rd) : (wr + depth - rd);
+    return (ringbuf_cnt_t)((wr >= rd) ? (wr - rd) : (wr + (ringbuf_uidx_t)depth - rd));
 }
 
-static inline void *_get_item_ptr(const ringbuf_t *rb, unsigned short idx)
+static inline void *_get_item_ptr(const ringbuf_t *rb, ringbuf_uidx_t idx)
 {
     unsigned int actual_idx = idx % rb->depth;
     ringBuf_ptr_t ret = (ringBuf_ptr_t)rb->buffer + ((ringBuf_ptr_t)actual_idx * (ringBuf_ptr_t)rb->item_size);
@@ -45,19 +49,20 @@ ringBuf_err_t ringBuf_clear(ringbuf_t *rb)
     return RINGBUF_OK;
 }
 
-int ringBuf_count(const ringbuf_t *rb)
+ringBuf_err_t ringBuf_count(const ringbuf_t *rb, ringbuf_cnt_t *pCount)
 {
-    if (!rb)
-        return -1;
-    if (!rb->buffer)
-        return -2;
+    RINGBUF_ARG_CHECK(rb);
+    if (!pCount)
+        return RINGBUF_ERR_ARG;
 
-    return _calc_count(rb->wr_idx, rb->rd_idx, rb->depth);
+    *pCount = _calc_count(rb->wr_idx, rb->rd_idx, rb->depth);
+    return RINGBUF_OK;
 }
 
 ringBuf_err_t ringBuf_init(ringbuf_t *rb)
 {
     RINGBUF_ARG_CHECK(rb);
+
 #ifdef RING_DEBUG
     VAR_PRINT_UD(rb->item_size);
     VAR_PRINT_UD(rb->depth);
@@ -75,10 +80,11 @@ ringBuf_err_t ringBuf_push(ringbuf_t *rb, const void *pData)
     if (!pData)
         return RINGBUF_ERR_ARG;
 
-    const int count = ringBuf_count(rb);
-    if (count < 0)
+    ringbuf_cnt_t count;
+    ringBuf_err_t err = ringBuf_count(rb, &count);
+    if (err != RINGBUF_OK)
     {
-        return RINGBUF_ERR_FAIL;
+        return err;
     }
     if (count >= rb->depth)
     {
@@ -108,15 +114,15 @@ ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData)
     if (!pData)
         return RINGBUF_ERR_ARG;
 
-    const int count = ringBuf_count(rb);
+    ringbuf_cnt_t count;
+    ringBuf_err_t err = ringBuf_count(rb, &count);
+    if (err != RINGBUF_OK)
+    {
+        return err;
+    }
     if (count == 0)
     {
         return RINGBUF_ERR_EMPTY;
-    }
-
-    if (count < 0)
-    {
-        return RINGBUF_ERR_FAIL;
     }
 
     void *read_pos = _get_item_ptr(rb, rb->rd_idx);
@@ -125,20 +131,21 @@ ringBuf_err_t ringBuf_pop(ringbuf_t *rb, void *pData)
     return RINGBUF_OK;
 }
 
-ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx)
+ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const ringbuf_ucnt_t itemIdx)
 {
     RINGBUF_ARG_CHECK(rb);
-    if (!pData || itemIdx < 0)
+    if (!pData)
         return RINGBUF_ERR_ARG;
 
-    const int count = ringBuf_count(rb);
+    ringbuf_cnt_t count;
+    ringBuf_err_t err = ringBuf_count(rb, &count);
+    if (err != RINGBUF_OK)
+    {
+        return err;
+    }
     if (count == 0)
     {
         return RINGBUF_ERR_EMPTY;
-    }
-    if (count < 0)
-    {
-        return RINGBUF_ERR_FAIL;
     }
 
     if (itemIdx >= count)
@@ -146,7 +153,7 @@ ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx
         return RINGBUF_ERR_IDX;
     }
 
-    unsigned short target_index = rb->rd_idx + itemIdx;
+    ringbuf_uidx_t target_index = rb->rd_idx + itemIdx;
     if (target_index >= 2 * rb->depth)
     {
         target_index -= 2 * rb->depth;
@@ -157,16 +164,16 @@ ringBuf_err_t ringBuf_peek(const ringbuf_t *rb, void *pData, const short itemIdx
     return RINGBUF_OK;
 }
 
-ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const short dataCount, short *pCount)
+ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const ringbuf_ucnt_t dataCount, ringbuf_cnt_t *pCount)
 {
-    if (!rb || !pData || dataCount < 0)
+    if (!rb || !pData)
         return RINGBUF_ERR_ARG;
 
     const unsigned char *src = pData;
-    short written = 0U;
+    ringbuf_cnt_t written = 0;
     ringBuf_err_t err = RINGBUF_OK;
 
-    for (written = 0U; written < dataCount; written++)
+    for (written = 0; written < (ringbuf_cnt_t)dataCount; written++)
     {
         err = ringBuf_push(rb, &src[written * rb->item_size]);
         if (err)
@@ -178,16 +185,16 @@ ringBuf_err_t ringBuf_push_multi(ringbuf_t *rb, const void *pData, const short d
     return err;
 }
 
-ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const short dataCount, short *pCount)
+ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const ringbuf_ucnt_t dataCount, ringbuf_cnt_t *pCount)
 {
-    if (!rb || !pData || dataCount < 0)
+    if (!rb || !pData)
         return RINGBUF_ERR_ARG;
 
     unsigned char *src = pData;
-    short read_count = 0U;
+    ringbuf_cnt_t read_count = 0;
     ringBuf_err_t err = RINGBUF_OK;
 
-    for (read_count = 0U; read_count < dataCount; read_count++)
+    for (read_count = 0; read_count < (ringbuf_cnt_t)dataCount; read_count++)
     {
         err = ringBuf_pop(rb, &src[read_count * rb->item_size]);
         if (err)
@@ -199,19 +206,19 @@ ringBuf_err_t ringBuf_pop_multi(ringbuf_t *rb, void *pData, const short dataCoun
     return err;
 }
 
-ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const short dataCount, const short itemIdx, short *pCount)
+ringBuf_err_t ringBuf_peek_multi(const ringbuf_t *rb, void *pData, const ringbuf_ucnt_t dataCount, const ringbuf_cnt_t itemIdx, ringbuf_cnt_t *pCount)
 {
-    if (!rb || !pData || dataCount < 0)
+    if (!rb || !pData)
         return RINGBUF_ERR_ARG;
 
     unsigned char *src = pData;
-    short read_count = 0U, target_index = 0U;
+    ringbuf_cnt_t read_count = 0, target_index = 0;
     ringBuf_err_t err = RINGBUF_OK;
 
-    for (read_count = 0U; read_count < dataCount; read_count++)
+    for (read_count = 0; read_count < (ringbuf_cnt_t)dataCount; read_count++)
     {
         target_index = itemIdx + read_count;
-        err = ringBuf_peek(rb, &src[read_count * rb->item_size], target_index);
+        err = ringBuf_peek(rb, &src[read_count * rb->item_size], (ringbuf_ucnt_t)target_index);
         if (err)
             break;
     }

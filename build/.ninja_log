@@ -1,4 +1,10 @@
 # ninja log v7
-44	341	7979410970453258	CMakeFiles/outputFile.dir/sources/ringBuffer.c.obj	6449196091ae9e2b
-31	365	7979410970324228	CMakeFiles/outputFile.dir/sources/main.c.obj	8a14e031bdd63f2d
-365	651	7979410973656557	bin/outputFile.exe	25a9f7625b0f0288
+39	383	8041596677518408	CMakeFiles/outputFile.dir/sources/ringBuffer.c.obj	6449196091ae9e2b
+25	420	8041596677379445	CMakeFiles/outputFile.dir/sources/main.c.obj	8a14e031bdd63f2d
+421	791	8041596681339061	bin/outputFile.exe	25a9f7625b0f0288
+36	704	8041598235803193	build.ninja	a135c336d5da7fc6
+36	704	8041598235803193	F:/cmake_study/ringBuffer/build/cmake_install.cmake	a135c336d5da7fc6
+3	55	8041598400488938	clean	d411bcb7a36c1b4f
+39	400	8041598401952903	CMakeFiles/outputFile.dir/sources/ringBuffer.c.obj	6449196091ae9e2b
+23	421	8041598401797388	CMakeFiles/outputFile.dir/sources/main.c.obj	8a14e031bdd63f2d
+422	765	8041598405776316	bin/outputFile.exe	25a9f7625b0f0288
